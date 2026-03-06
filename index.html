@@ -171,6 +171,24 @@ canvas#weightChart { width: 100% !important; }
 .modal-ok { flex: 1; background: var(--accent); color: white; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-size: 0.9rem; font-family: 'DM Sans', sans-serif; }
 .modal-cancel { flex: 1; background: transparent; color: var(--text-sub); border: 1px solid var(--border); border-radius: 10px; padding: 12px; cursor: pointer; font-size: 0.9rem; font-family: 'DM Sans', sans-serif; }
 
+/* Date nav */
+.date-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
+}
+.date-nav-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-sub);
+  border-radius: 8px; width: 36px; height: 36px; font-size: 1rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.date-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+.date-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.date-nav-center { text-align: center; flex: 1; }
+.date-nav-label { font-family: 'DM Serif Display', serif; font-size: 1rem; color: var(--text); display: block; }
+.date-nav-sub { font-size: 0.7rem; color: var(--text-sub); margin-top: 2px; }
+
 /* Toast */
 .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--accent); color: white; padding: 10px 24px; border-radius: 30px; font-size: 0.85rem; opacity: 0; transition: all 0.3s; z-index: 300; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -187,7 +205,15 @@ canvas#weightChart { width: 100% !important; }
 
   <!-- Today -->
   <div id="view-today" class="view active">
-    <div class="today-header" id="today-header">今日の記録</div>
+
+    <div class="date-nav">
+      <button class="date-nav-btn" id="btn-prev-day" onclick="changeDay(-1)">‹</button>
+      <div class="date-nav-center">
+        <span class="date-nav-label" id="date-nav-label">—</span>
+        <div class="date-nav-sub" id="date-nav-sub"></div>
+      </div>
+      <button class="date-nav-btn" id="btn-next-day" onclick="changeDay(1)">›</button>
+    </div>
 
     <div class="streak-row">
       <div class="streak-card"><span class="streak-val" id="streak-days">0</span><span class="streak-lbl">連続日数</span></div>
@@ -321,9 +347,44 @@ var data = loadData();
 var chartRange = 7;
 var chartInstance = null;
 var ratings = { meal: null, exercise: null };
+var selectedDate = realTodayKey(); // 現在選択中の日付
 
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
-function todayKey() { return new Date().toISOString().split('T')[0]; }
+
+// 実際の今日（システム日付）
+function realTodayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+// 後方互換のため todayKey は selectedDate を返す
+function todayKey() { return selectedDate; }
+
+function dateToKey(d) { return d.toISOString().split('T')[0]; }
+function keyToDate(k) {
+  var parts = k.split('-');
+  return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+}
+function formatDateLabel(k) {
+  var d = keyToDate(k);
+  var days = ['日','月','火','水','木','金','土'];
+  return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + days[d.getDay()] + '）';
+}
+
+function changeDay(delta) {
+  var d = keyToDate(selectedDate);
+  d.setDate(d.getDate() + delta);
+  var newKey = dateToKey(d);
+  // 未来には行けない
+  if (newKey > realTodayKey()) return;
+  selectedDate = newKey;
+  loadDayIntoForm();
+}
+
+function updateDateNav() {
+  document.getElementById('date-nav-label').textContent = formatDateLabel(selectedDate);
+  var isToday = selectedDate === realTodayKey();
+  document.getElementById('date-nav-sub').textContent = isToday ? '今日' : '';
+  document.getElementById('btn-next-day').disabled = isToday;
+}
 
 function showToast(msg) {
   var t = document.getElementById('toast');
@@ -333,16 +394,17 @@ function showToast(msg) {
 
 // ── Today View ──────────────────────────────────────────
 function initTodayView() {
-  var tk = todayKey();
-  var d = new Date();
-  document.getElementById('today-header').innerHTML =
-    '今日の記録 <span>' + d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日</span>';
+  selectedDate = realTodayKey();
+  loadDayIntoForm();
+}
 
+function loadDayIntoForm() {
+  updateDateNav();
+  var tk = selectedDate;
   var rec = data.records[tk] || {};
   document.getElementById('w-morning').value = rec.wMorning != null ? rec.wMorning : '';
   document.getElementById('w-evening').value = rec.wEvening != null ? rec.wEvening : '';
   document.getElementById('memo-input').value = rec.memo || '';
-
   ratings.meal = rec.meal || null;
   ratings.exercise = rec.exercise || null;
   restoreChips();
@@ -404,7 +466,7 @@ function prevDay(dateStr) {
 }
 
 function saveToday() {
-  var tk = todayKey();
+  var tk = selectedDate;
   var wm = document.getElementById('w-morning').value;
   var we = document.getElementById('w-evening').value;
   var memo = document.getElementById('memo-input').value.trim();
@@ -416,7 +478,8 @@ function saveToday() {
   rec.exercise = ratings.exercise;
   rec.memo = memo;
   save(); updateStreak();
-  showToast('記録しました ✓');
+  var label = selectedDate === realTodayKey() ? '今日' : formatDateLabel(selectedDate).replace(/（.）/,'');
+  showToast(label + 'の記録を保存しました ✓');
 }
 
 // ── Graph View ──────────────────────────────────────────
