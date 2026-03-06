@@ -1,0 +1,19 @@
+{
+  "name": "Health Log",
+  "short_name": "HealthLog",
+  "description": "毎日の体重・食事・運動を記録するアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f4ef",
+  "theme_color": "#2d6a4f",
+  "orientation": "portrait",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
