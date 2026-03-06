@@ -351,14 +351,21 @@ var selectedDate = realTodayKey(); // 現在選択中の日付
 
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
 
-// 実際の今日（システム日付）
+// 実際の今日（ローカル時間基準）
 function realTodayKey() {
-  return new Date().toISOString().split('T')[0];
+  var d = new Date();
+  return localDateKey(d);
 }
 // 後方互換のため todayKey は selectedDate を返す
 function todayKey() { return selectedDate; }
 
-function dateToKey(d) { return d.toISOString().split('T')[0]; }
+function localDateKey(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+function dateToKey(d) { return localDateKey(d); }
 function keyToDate(k) {
   var parts = k.split('-');
   return new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
@@ -462,7 +469,7 @@ function updateStreak() {
 }
 
 function prevDay(dateStr) {
-  var d = new Date(dateStr); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0];
+  var d = keyToDate(dateStr); d.setDate(d.getDate()-1); return localDateKey(d);
 }
 
 function saveToday() {
@@ -494,14 +501,14 @@ function renderChart() {
   var keys = Object.keys(data.records).sort();
   // last N days
   var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - chartRange + 1);
-  var cutoffStr = cutoff.toISOString().split('T')[0];
+  var cutoffStr = localDateKey(cutoff);
   var filtered = keys.filter(function(k){ return k >= cutoffStr; });
 
   // fill all days in range
   var labels = [], morningData = [], eveningData = [];
   for (var i = 0; i < chartRange; i++) {
     var d = new Date(); d.setDate(d.getDate() - chartRange + 1 + i);
-    var dk = d.toISOString().split('T')[0];
+    var dk = localDateKey(d);
     var short = (d.getMonth()+1) + '/' + d.getDate();
     labels.push(short);
     var rec = data.records[dk];
